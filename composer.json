@@ -3,6 +3,18 @@
     "description": "PDO-based Firebird/InterBase database driver for CodeIgniter 4",
     "type": "library",
     "license": "MIT",
+    "authors": [
+        {
+            "name": "Donatas Glodenis",
+            "homepage": "https://github.com/dgvirtual"
+        }
+    ],
+    "homepage": "https://github.com/dgvirtual/codeigniter4-firebird",
+    "support": {
+        "issues": "https://github.com/dgvirtual/codeigniter4-firebird/issues",
+        "source": "https://github.com/dgvirtual/codeigniter4-firebird"
+    },
+    "keywords": ["codeigniter4", "firebird", "interbase", "database", "pdo"],
     "require": {
         "php": "^8.1",
         "ext-pdo": "*",
