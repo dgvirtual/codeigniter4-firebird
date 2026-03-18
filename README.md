@@ -27,10 +27,10 @@ public array $firebird = [
     'DSN'      => 'firebird:dbname=192.168.1.10:/path/to/database.fdb;charset=UTF8;dialect=3',
     'hostname' => '',
     'port'     => '',           // default Firebird port: 3050
-    'username' => 'SYSDBA',
-    'password' => 'masterkey',
+    'username' => 'DBUSERHERE',
+    'password' => 'DbPasswordHere',
     'database' => '',
-    'DBDriver' => 'Dgvirtual\CI4Firebird\Connection',
+    'DBDriver' => 'Dgvirtual\CI4Firebird',
     'DBPrefix' => '',
     'pConnect' => false,
     'DBDebug'  => true,
@@ -44,8 +44,28 @@ public array $firebird = [
 ];
 ```
 
-> **Note:** `DBDriver` must be set to the fully-qualified class name
-> `Dgvirtual\CI4Firebird\Connection`, not the short string `'Firebird'`.
+Or:
+
+```php
+    // app/Config/Database.php
+    public $firebird = [
+        'DSN'      => '',
+        'hostname' => 'example.com',
+        'port'     => '3050',
+        'username' => 'DBUSERHERE',
+        'password' => 'DbPasswordHere',
+        'database' => 'databasename',
+        'DBDriver' => 'Dgvirtual\CI4Firebird',
+        'DBPrefix' => '',
+        'pConnect' => false,
+        'DBDebug'  => (ENVIRONMENT !== 'production'),
+        'charset'  => 'UTF8',
+        'swapPre'  => '',
+        'failover' => [],
+];
+```
+
+> **Note:** `DBDriver` must be set to the namespace `Dgvirtual\CI4Firebird`.
 
 ## Usage
 
@@ -103,7 +123,7 @@ class MyModel extends \CodeIgniter\Model
 - String escaping uses Firebird-compatible single-quote doubling (`'` → `''`).
 - `LIKE` wildcard escaping is implemented in `escapeLikeStringDirect()`.
 
-## Known limitations
+## Known limitations (Needs checking/update)
 
 | Area | Limitation |
 |---|---|
