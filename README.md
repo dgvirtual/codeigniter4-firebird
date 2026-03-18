@@ -123,6 +123,67 @@ class MyModel extends \CodeIgniter\Model
 - String escaping uses Firebird-compatible single-quote doubling (`'` → `''`).
 - `LIKE` wildcard escaping is implemented in `escapeLikeStringDirect()`.
 
+## Running Tests
+
+The test suite requires a live Firebird server. Everything else is self-contained —
+no CI4 application project is needed.
+
+### 1. Install dependencies
+
+```bash
+git clone https://github.com/dgvirtual/codeigniter4-firebird.git
+cd codeigniter4-firebird
+composer install
+```
+
+### 2. Start a Firebird server
+
+The quickest way is Docker:
+
+```bash
+docker run -d --name firebird-test \
+  -e ISC_PASSWORD=masterkey \
+  -e FIREBIRD_DATABASE=test.fdb \
+  -p 3050:3050 \
+  jacobalberty/firebird:3.0
+```
+
+> **Note:** Use the Firebird **3.x** image. The `php8.3-interbase` / `pdo_firebird` package
+> ships a Firebird 3 client library (`LI-V6.3.x`). Connecting it to a Firebird 4 server
+> causes subtle mis-behaviour (most notably, `PDO::rollBack()` silently commits instead).
+
+The test suite creates and drops its own tables (`TEST_CATS`, `TEST_ITEMS`), so any
+empty database works.
+
+### 3. Configure credentials (if necessary)
+
+The default credentials in `phpunit.xml.dist` match the Docker command above
+(`SYSDBA` / `masterkey`, database `/firebird/data/test.fdb` on `localhost:3050`).
+
+If your server uses different credentials or a different path, copy
+`phpunit.xml.dist` to `phpunit.xml` (which is git-ignored) and adjust the `<env>`
+entries:
+
+```xml
+<env name="FIREBIRD_DSN"      value="firebird:dbname=myhost:/data/custom.fdb;charset=UTF8;dialect=3"/>
+<env name="FIREBIRD_USER"     value="MYUSER"/>
+<env name="FIREBIRD_PASSWORD" value="secret"/>
+```
+
+Setting `FIREBIRD_DSN` takes precedence over the individual `FIREBIRD_HOST`,
+`FIREBIRD_PORT`, and `FIREBIRD_DATABASE` variables.
+
+### 4. Run the tests
+
+```bash
+vendor/bin/phpunit
+```
+
+If the `firebird_test` connection cannot be established (server unavailable, wrong
+credentials, missing `pdo_firebird` extension), every test is automatically
+**skipped** rather than failing — so the suite is safe to run in CI environments
+that do not have Firebird available.
+
 ## Known limitations (Needs checking/update)
 
 | Area | Limitation |
@@ -138,4 +199,4 @@ class MyModel extends \CodeIgniter\Model
 | **Utils — `_backup()`** | Always throws `DatabaseException: Unsupported feature`. Database backup through CI4's Utils is not available. |
 | **`INSERT IGNORE` / `UPDATE IGNORE`** | `supportedIgnoreStatements` is empty — the Query Builder's `ignore()` modifier has no effect and will not produce valid SQL. |
 | **Memory usage** | All result rows are fetched into a PHP array at once (`PDOStatement::fetchAll`). Avoid using this driver for queries that return very large result sets. |
-| **Transactions** | Transaction methods are inherited from `BaseConnection` and rely on PDO's `beginTransaction()` / `commit()` / `rollBack()`. Basic transactions work, but savepoints and nested transactions have not been tested. |
+| **Transactions — rollback** | The `pdo_firebird` PHP extension calls `isc_commit_retaining()` after every DML statement, which silently commits each row while keeping the transaction handle open. As a result, `PDO::rollBack()` (and CI4's `transRollback()`) **cannot undo already-committed rows**. `commit()` / `transComplete()` work correctly. This is a known limitation of the `pdo_firebird` extension. |

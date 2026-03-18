@@ -2,7 +2,7 @@
 <phpunit
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/10.5/phpunit.xsd"
-    bootstrap="../../vendor/codeigniter4/framework/system/Test/bootstrap.php"
+    bootstrap="vendor/codeigniter4/framework/system/Test/bootstrap.php"
     backupGlobals="false"
     colors="true"
     columns="max">
@@ -14,8 +14,12 @@
     <php>
         <server name="app.baseURL" value="http://example.com/"/>
         <server name="CODEIGNITER_SCREAM_DEPRECATIONS" value="0"/>
-        <const name="HOMEPATH" value="../../"/>
-        <const name="CONFIGPATH" value="../../app/Config/"/>
-        <const name="PUBLICPATH" value="../../public/"/>
+        <const name="HOMEPATH" value="./"/>
+        <const name="CONFIGPATH" value="tests/_support/Config/"/>
+        <const name="PUBLICPATH" value="./"/>
+        <!-- Override these in your local phpunit.xml to match your Firebird setup -->
+        <env name="FIREBIRD_DSN"      value="firebird:dbname=localhost:/firebird/data/test.fdb;charset=UTF8;dialect=3"/>
+        <env name="FIREBIRD_USER"     value="SYSDBA"/>
+        <env name="FIREBIRD_PASSWORD" value="masterkey"/>
     </php>
 </phpunit>

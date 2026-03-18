@@ -566,10 +566,19 @@ class Connection extends BaseConnection
 	/**
 	 * Begin Transaction
 	 *
+	 * Firebird/PDO never runs in autocommit mode — every query is implicitly
+	 * inside a transaction. Calling PDO::beginTransaction() while that implicit
+	 * transaction is still open throws "There is already an active transaction".
+	 * Commit any implicit transaction first so we get a clean explicit one.
+	 *
 	 * @return boolean
 	 */
 	protected function _transBegin(): bool
 	{
+		if ($this->connID->inTransaction()) {
+			$this->connID->commit();
+		}
+
 		return $this->connID->beginTransaction();
 	}
 
