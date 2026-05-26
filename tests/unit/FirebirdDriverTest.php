@@ -171,6 +171,52 @@ final class FirebirdDriverTest extends CIUnitTestCase
         self::$fbdb->table('TEST_CATS')->where('ID', 50)->delete();
     }
 
+    /**
+     * Verifies that Builder appends RETURNING and Connection captures the PK
+     * so that $db->insertID() returns the correct value without relying on
+     * PDO::lastInsertId() (unsupported by pdo_firebird).
+     */
+    public function testInsertCapturesIdViaReturning(): void
+    {
+        self::$fbdb->table('TEST_CATS')->insert(['ID' => 55, 'NAME' => 'RetTest']);
+        $this->assertSame(55, self::$fbdb->insertID());
+
+        // cleanup
+        self::$fbdb->table('TEST_CATS')->where('ID', 55)->delete();
+    }
+
+    /**
+     * Verifies that getPrimaryKeyColumn() resolves the PK via Firebird system
+     * tables and caches the result.
+     */
+    public function testGetPrimaryKeyColumn(): void
+    {
+        // Quoted form as produced by Builder::_insert()
+        $this->assertSame('ID', self::$fbdb->getPrimaryKeyColumn('"TEST_CATS"'));
+        $this->assertSame('ID', self::$fbdb->getPrimaryKeyColumn('"TEST_ITEMS"'));
+        // Table without a PK should return an empty string, not throw
+        $this->assertSame('', self::$fbdb->getPrimaryKeyColumn('"NONEXISTENT_TABLE"'));
+    }
+
+    /**
+     * A Model with $useAutoIncrement = true (the default) must receive the
+     * correct insertID() value after insert when the driver uses RETURNING.
+     */
+    public function testModelInsertWithAutoIncrementReturnsCorrectId(): void
+    {
+        // Anonymous subclass that re-enables auto-increment detection so that
+        // CI4's Model::doInsert() calls $this->db->insertID() after the insert.
+        $m = new class extends \Dgvirtual\CI4Firebird\Tests\Support\Models\FirebirdTestModel {
+            protected $useAutoIncrement = true;
+        };
+
+        $id = $m->insert(['ID' => 56, 'NAME' => 'AutoIncTest']);
+
+        $this->assertSame(56, $id);
+
+        $m->delete(56);
+    }
+
     public function testInsertBatch(): void
     {
         $before = self::$fbdb->table('TEST_CATS')->countAll();

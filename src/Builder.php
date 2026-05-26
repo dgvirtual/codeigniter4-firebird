@@ -77,6 +77,31 @@ class Builder extends BaseBuilder
 	protected $escapeChar = '"';
 
 	/**
+	 * Override INSERT to append a RETURNING clause so that Connection::execute()
+	 * can capture the generated primary key without relying on PDO::lastInsertId(),
+	 * which the Firebird PDO driver does not support.
+	 *
+	 * @param string $table
+	 * @param array  $keys
+	 * @param array  $values
+	 *
+	 * @return string
+	 */
+	protected function _insert(string $table, array $keys, array $values): string
+	{
+		$sql = 'INSERT INTO ' . $table
+			. ' (' . implode(', ', $keys) . ')'
+			. ' VALUES (' . implode(', ', $values) . ')';
+
+		$pkColumn = $this->db->getPrimaryKeyColumn($table);
+		if ($pkColumn !== '') {
+			$sql .= ' RETURNING "' . $pkColumn . '"';
+		}
+
+		return $sql;
+	}
+
+	/**
 	 * Specifies which sql statements
 	 * support the ignore option.
 	 *

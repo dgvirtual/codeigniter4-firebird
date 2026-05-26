@@ -48,6 +48,12 @@ use CodeIgniter\Database\Exceptions\DatabaseException;
 class Connection extends BaseConnection
 {
 	/**
+	 * Stores the last inserted ID captured via an INSERT ... RETURNING clause.
+	 *
+	 * @var integer
+	 */
+	protected int $lastInsertedId = 0;
+	/**
 	 * Database driver
 	 *
 	 * @var string
@@ -194,9 +200,18 @@ class Connection extends BaseConnection
 	{
 		try
 		{
-			return $this->connID->query(
-				$this->prepQuery($sql)
-			);
+			$stmt = $this->connID->query($this->prepQuery($sql));
+
+			// Capture the PK value returned by INSERT ... RETURNING <col>
+			if ($stmt instanceof \PDOStatement
+				&& stripos(ltrim($sql), 'INSERT ') === 0
+				&& stripos($sql, ' RETURNING ') !== false
+			) {
+				$row = $stmt->fetch(\PDO::FETCH_NUM);
+				$this->lastInsertedId = ($row !== false) ? (int) $row[0] : 0;
+			}
+
+			return $stmt;
 		}
 		catch (\PDOException $e)
 		{
@@ -552,13 +567,50 @@ class Connection extends BaseConnection
 	//--------------------------------------------------------------------
 
 	/**
-	 * Insert ID
+	 * Returns the ID from the most recent INSERT, captured via the
+	 * RETURNING clause that Builder::_insert() appends automatically.
 	 *
 	 * @return integer
 	 */
 	public function insertID($name = null): int
 	{
-		return $this->connID->lastInsertId($name);
+		return $this->lastInsertedId;
+	}
+
+	//--------------------------------------------------------------------
+
+	/**
+	 * Returns the primary key column name for $table by querying Firebird
+	 * system tables. Result is cached per connection lifetime.
+	 *
+	 * @param  string $table  Table name, optionally quoted with double-quotes.
+	 * @return string         PK column name, or '' if none found.
+	 */
+	public function getPrimaryKeyColumn(string $table): string
+	{
+		// Normalise: strip surrounding quotes, uppercase (Firebird system names are uppercase)
+		$cleanTable = strtoupper(trim($table, '"'));
+
+		$cacheKey = 'pk_col_' . $cleanTable;
+		if (isset($this->dataCache[$cacheKey])) {
+			return $this->dataCache[$cacheKey];
+		}
+
+		try {
+			$stmt = $this->connID->query(
+				"SELECT TRIM(s.RDB\$FIELD_NAME) AS pk_column
+				 FROM RDB\$RELATION_CONSTRAINTS rc
+				 JOIN RDB\$INDEX_SEGMENTS s ON s.RDB\$INDEX_NAME = rc.RDB\$INDEX_NAME
+				 WHERE rc.RDB\$CONSTRAINT_TYPE = 'PRIMARY KEY'
+				   AND TRIM(rc.RDB\$RELATION_NAME) = '{$cleanTable}'
+				 ORDER BY s.RDB\$FIELD_POSITION
+				 ROWS 1"
+			);
+			$row = ($stmt instanceof \PDOStatement) ? $stmt->fetch(\PDO::FETCH_NUM) : false;
+			return $this->dataCache[$cacheKey] = ($row !== false) ? trim((string) $row[0]) : '';
+		} catch (\PDOException $e) {
+			return $this->dataCache[$cacheKey] = '';
+		}
 	}
 
 	//--------------------------------------------------------------------
